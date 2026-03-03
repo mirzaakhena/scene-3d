@@ -1,9 +1,32 @@
-import { useRef } from 'react'
+import { memo, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 
-// ----- Shared Wheel -----
-function Wheel({ position }: { position: [number, number, number] }) {
+// ----- Wheel positions (defined outside component to avoid recreation) -----
+const TRACTOR_WHEEL_POSITIONS: [number, number, number][] = [
+  [2.2, 0.43, 0.88],   // front left
+  [2.2, 0.43, -0.88],  // front right
+  [-0.75, 0.43, 0.9],  // rear axle 1 left
+  [-0.75, 0.43, -0.9], // rear axle 1 right
+  [-1.65, 0.43, 0.9],  // rear axle 2 left (tandem)
+  [-1.65, 0.43, -0.9], // rear axle 2 right (tandem)
+]
+
+const TRAILER_WHEEL_POSITIONS: [number, number, number][] = [
+  [-9.2, 0.43, 0.9],   // axle 1 left
+  [-9.2, 0.43, -0.9],  // axle 1 right
+  [-10.1, 0.43, 0.9],  // axle 2 left
+  [-10.1, 0.43, -0.9], // axle 2 right
+  [-11.0, 0.43, 0.9],  // axle 3 left
+  [-11.0, 0.43, -0.9], // axle 3 right
+]
+
+const DOOR_HINGE_Z: number[] = [-0.6, 0.6]
+
+const RIB_X_POSITIONS: number[] = [-0.5, -2.3, -4.1, -5.9, -7.7, -9.5, -10.8]
+
+// ----- Shared Wheel (memo: props are primitive tuple, stable reference) -----
+const Wheel = memo(function Wheel({ position }: { position: [number, number, number] }) {
   return (
     <group position={position}>
       {/* Tire */}
@@ -23,10 +46,16 @@ function Wheel({ position }: { position: [number, number, number] }) {
       </mesh>
     </group>
   )
-}
+})
 
-// ----- Tractor (Cabin + Chassis) -----
-function Tractor() {
+// ----- Tractor (memo: no props, renders once and stays stable) -----
+const Tractor = memo(function Tractor() {
+  // Memoize wheel list — array is stable since positions are constant
+  const tractorWheels = useMemo(
+    () => TRACTOR_WHEEL_POSITIONS.map((pos, i) => <Wheel key={i} position={pos} />),
+    [] // empty deps: positions never change
+  )
+
   return (
     <group>
       {/* === CHASSIS === */}
@@ -149,19 +178,48 @@ function Tractor() {
         <meshStandardMaterial color="#495057" metalness={0.6} roughness={0.4} />
       </mesh>
 
-      {/* === 6 WHEELS: 2 front + 4 rear tandem === */}
-      <Wheel position={[2.2, 0.43, 0.88]} />
-      <Wheel position={[2.2, 0.43, -0.88]} />
-      <Wheel position={[-0.75, 0.43, 0.9]} />
-      <Wheel position={[-0.75, 0.43, -0.9]} />
-      <Wheel position={[-1.65, 0.43, 0.9]} />
-      <Wheel position={[-1.65, 0.43, -0.9]} />
+      {/* 6 wheels */}
+      {tractorWheels}
     </group>
   )
-}
+})
 
-// ----- Trailer (Container on Chassis) -----
-function Trailer() {
+// ----- Trailer (memo: no props, renders once and stays stable) -----
+const Trailer = memo(function Trailer() {
+  // Memoize repeated JSX lists
+  const trailerWheels = useMemo(
+    () => TRAILER_WHEEL_POSITIONS.map((pos, i) => <Wheel key={i} position={pos} />),
+    []
+  )
+
+  const doorHinges = useMemo(
+    () =>
+      DOOR_HINGE_Z.map((z, i) => (
+        <mesh key={i} position={[-11.14, 2.08, z]}>
+          <boxGeometry args={[0.08, 2.6, 0.06]} />
+          <meshStandardMaterial color="#888" metalness={0.7} />
+        </mesh>
+      )),
+    []
+  )
+
+  const verticalRibs = useMemo(
+    () =>
+      RIB_X_POSITIONS.map((x, i) => (
+        <group key={i}>
+          <mesh position={[x, 2.08, 1.28]}>
+            <boxGeometry args={[0.12, 2.78, 0.05]} />
+            <meshStandardMaterial color="#1d3557" />
+          </mesh>
+          <mesh position={[x, 2.08, -1.28]}>
+            <boxGeometry args={[0.12, 2.78, 0.05]} />
+            <meshStandardMaterial color="#1d3557" />
+          </mesh>
+        </group>
+      )),
+    []
+  )
+
   return (
     <group position={[-1.4, 0, 0]}>
       {/* === KINGPIN === */}
@@ -230,27 +288,12 @@ function Trailer() {
         <boxGeometry args={[0.04, 2.76, 0.04]} />
         <meshStandardMaterial color="#0d1b2a" />
       </mesh>
-      {/* Door hinges */}
-      {[-0.6, 0.6].map((z, i) => (
-        <mesh key={i} position={[-11.14, 2.08, z]}>
-          <boxGeometry args={[0.08, 2.6, 0.06]} />
-          <meshStandardMaterial color="#888" metalness={0.7} />
-        </mesh>
-      ))}
 
-      {/* Vertical ribs on sides */}
-      {[-0.5, -2.3, -4.1, -5.9, -7.7, -9.5, -10.8].map((x, i) => (
-        <group key={i}>
-          <mesh position={[x, 2.08, 1.28]}>
-            <boxGeometry args={[0.12, 2.78, 0.05]} />
-            <meshStandardMaterial color="#1d3557" />
-          </mesh>
-          <mesh position={[x, 2.08, -1.28]}>
-            <boxGeometry args={[0.12, 2.78, 0.05]} />
-            <meshStandardMaterial color="#1d3557" />
-          </mesh>
-        </group>
-      ))}
+      {/* Door hinges */}
+      {doorHinges}
+
+      {/* Vertical ribs */}
+      {verticalRibs}
 
       {/* Bottom sill rails */}
       <mesh position={[-5.6, 0.72, 1.28]}>
@@ -262,16 +305,11 @@ function Trailer() {
         <meshStandardMaterial color="#1d3557" />
       </mesh>
 
-      {/* === 6 TRAILER WHEELS (3 axles) === */}
-      <Wheel position={[-9.2, 0.43, 0.9]} />
-      <Wheel position={[-9.2, 0.43, -0.9]} />
-      <Wheel position={[-10.1, 0.43, 0.9]} />
-      <Wheel position={[-10.1, 0.43, -0.9]} />
-      <Wheel position={[-11.0, 0.43, 0.9]} />
-      <Wheel position={[-11.0, 0.43, -0.9]} />
+      {/* 6 trailer wheels */}
+      {trailerWheels}
     </group>
   )
-}
+})
 
 // ----- Main Export -----
 export default function Truck() {
@@ -283,7 +321,6 @@ export default function Truck() {
     }
   })
 
-  // Offset so the full semi-truck is centered at origin
   return (
     <group ref={groupRef} position={[4.5, 0, 0]}>
       <Tractor />
