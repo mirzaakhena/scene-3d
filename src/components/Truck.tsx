@@ -25,6 +25,9 @@ const DOOR_HINGE_Z: number[] = [-0.6, 0.6]
 
 const RIB_X_POSITIONS: number[] = [-0.5, -2.3, -4.1, -5.9, -7.7, -9.5, -10.8]
 
+// Container is positioned relative to trailer origin (x=0 = kingpin)
+const CONTAINER_OFFSET_X = -5.6
+
 // ----- Shared Wheel (memo: props are primitive tuple, stable reference) -----
 const Wheel = memo(function Wheel({ position }: { position: [number, number, number] }) {
   return (
@@ -184,14 +187,8 @@ const Tractor = memo(function Tractor() {
   )
 })
 
-// ----- Trailer (memo: no props, renders once and stays stable) -----
-const Trailer = memo(function Trailer() {
-  // Memoize repeated JSX lists
-  const trailerWheels = useMemo(
-    () => TRAILER_WHEEL_POSITIONS.map((pos, i) => <Wheel key={i} position={pos} />),
-    []
-  )
-
+// ----- Container (memo: no props, purely decorative static geometry) -----
+const Container = memo(function Container() {
   const doorHinges = useMemo(
     () =>
       DOOR_HINGE_Z.map((z, i) => (
@@ -217,6 +214,63 @@ const Trailer = memo(function Trailer() {
           </mesh>
         </group>
       )),
+    []
+  )
+
+  return (
+    <group position={[CONTAINER_OFFSET_X, 0, 0]}>
+      {/* Main body */}
+      <mesh position={[0, 2.08, 0]}>
+        <boxGeometry args={[11.0, 2.78, 2.52]} />
+        <meshStandardMaterial color="#457b9d" />
+      </mesh>
+
+      {/* Roof */}
+      <mesh position={[0, 3.5, 0]}>
+        <boxGeometry args={[11.05, 0.08, 2.55]} />
+        <meshStandardMaterial color="#1d3557" />
+      </mesh>
+
+      {/* Front face */}
+      <mesh position={[5.53, 2.08, 0]}>
+        <boxGeometry args={[0.06, 2.78, 2.52]} />
+        <meshStandardMaterial color="#1d3557" />
+      </mesh>
+
+      {/* Rear doors */}
+      <mesh position={[-5.57, 2.08, 0]}>
+        <boxGeometry args={[0.06, 2.76, 2.5]} />
+        <meshStandardMaterial color="#1d3557" />
+      </mesh>
+      {/* Door center split */}
+      <mesh position={[-5.58, 2.08, 0]}>
+        <boxGeometry args={[0.04, 2.76, 0.04]} />
+        <meshStandardMaterial color="#0d1b2a" />
+      </mesh>
+
+      {/* Door hinges */}
+      {doorHinges}
+
+      {/* Vertical ribs */}
+      {verticalRibs}
+
+      {/* Bottom sill rails */}
+      <mesh position={[0, 0.72, 1.28]}>
+        <boxGeometry args={[11.0, 0.12, 0.08]} />
+        <meshStandardMaterial color="#1d3557" />
+      </mesh>
+      <mesh position={[0, 0.72, -1.28]}>
+        <boxGeometry args={[11.0, 0.12, 0.08]} />
+        <meshStandardMaterial color="#1d3557" />
+      </mesh>
+    </group>
+  )
+})
+
+// ----- Trailer chassis + kingpin + landing gear + wheels -----
+const Trailer = memo(function Trailer() {
+  const trailerWheels = useMemo(
+    () => TRAILER_WHEEL_POSITIONS.map((pos, i) => <Wheel key={i} position={pos} />),
     []
   )
 
@@ -260,52 +314,10 @@ const Trailer = memo(function Trailer() {
         <meshStandardMaterial color="#444" />
       </mesh>
 
-      {/* === CONTAINER BODY === */}
-      <mesh position={[-5.6, 2.08, 0]}>
-        <boxGeometry args={[11.0, 2.78, 2.52]} />
-        <meshStandardMaterial color="#457b9d" />
-      </mesh>
+      {/* === CONTAINER === */}
+      <Container />
 
-      {/* Container roof */}
-      <mesh position={[-5.6, 3.5, 0]}>
-        <boxGeometry args={[11.05, 0.08, 2.55]} />
-        <meshStandardMaterial color="#1d3557" />
-      </mesh>
-
-      {/* Container front face */}
-      <mesh position={[-0.07, 2.08, 0]}>
-        <boxGeometry args={[0.06, 2.78, 2.52]} />
-        <meshStandardMaterial color="#1d3557" />
-      </mesh>
-
-      {/* Container rear doors */}
-      <mesh position={[-11.13, 2.08, 0]}>
-        <boxGeometry args={[0.06, 2.76, 2.5]} />
-        <meshStandardMaterial color="#1d3557" />
-      </mesh>
-      {/* Door center split */}
-      <mesh position={[-11.14, 2.08, 0]}>
-        <boxGeometry args={[0.04, 2.76, 0.04]} />
-        <meshStandardMaterial color="#0d1b2a" />
-      </mesh>
-
-      {/* Door hinges */}
-      {doorHinges}
-
-      {/* Vertical ribs */}
-      {verticalRibs}
-
-      {/* Bottom sill rails */}
-      <mesh position={[-5.6, 0.72, 1.28]}>
-        <boxGeometry args={[11.0, 0.12, 0.08]} />
-        <meshStandardMaterial color="#1d3557" />
-      </mesh>
-      <mesh position={[-5.6, 0.72, -1.28]}>
-        <boxGeometry args={[11.0, 0.12, 0.08]} />
-        <meshStandardMaterial color="#1d3557" />
-      </mesh>
-
-      {/* 6 trailer wheels */}
+      {/* === 6 TRAILER WHEELS (3 axles) === */}
       {trailerWheels}
     </group>
   )
